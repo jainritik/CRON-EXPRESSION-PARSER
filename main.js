@@ -9,7 +9,9 @@ const cronService = new CronService();
 try {
   const cronExpression = cronService.parseCronExpression(cronString);
   const formattedOutput = cronService.formatOutput(cronExpression);
-  console.log(formattedOutput);
+  console.log(
+    
+  );
 } catch (error) {
   console.error('Error ehile parsing cron expression:', error.message);
   process.exit(1);
