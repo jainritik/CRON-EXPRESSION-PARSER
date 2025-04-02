@@ -1,0 +1,25 @@
+name: PR Review Bot
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]  # Runs on PR creation and updates
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3  # Pulls the code
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install Dependencies
+        run: pip install requests openai
+
+      - name: Run AI PR Review Bot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python .github/scripts/pr_review.py  # Runs the PR review script
