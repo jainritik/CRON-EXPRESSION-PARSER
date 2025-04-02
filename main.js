@@ -11,7 +11,7 @@ try {
   const formattedOutput = cronService.formatOutput(cronExpression);
   console.log(formattedOutput);
 } catch (error) {
-  console.error('Error parsing cron expression:', error.message);
+  console.error('Error ehile parsing cron expression:', error.message);
   process.exit(1);
 }
- 
+
