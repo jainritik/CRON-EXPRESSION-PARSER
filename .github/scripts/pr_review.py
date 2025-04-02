@@ -1,59 +1,48 @@
+import subprocess
 import os
-import requests
 import json
-from openai import OpenAI
+import requests
 
-# Load API keys from GitHub environment variables
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-REPO = os.getenv("GITHUB_REPOSITORY")  # "owner/repo"
-PR_EVENT_PATH = os.getenv("GITHUB_EVENT_PATH")
+# Load GitHub event data
+GITHUB_EVENT_PATH = os.getenv("GITHUB_EVENT_PATH")
 
-# Read PR event JSON to get PR number
-with open(PR_EVENT_PATH, "r") as f:
+with open(GITHUB_EVENT_PATH, "r") as f:
     event_data = json.load(f)
     PR_NUMBER = event_data["pull_request"]["number"]
+    REPO = event_data["repository"]["full_name"]
 
-# GitHub API Headers
+# GitHub API setup
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
 
-# Step 1: Fetch PR changes
-pr_url = f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}/files"
-pr_response = requests.get(pr_url, headers=headers)
-pr_files = pr_response.json()
+# Step 1: Get PR diff (changed files)
+pr_files_url = f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}/files"
+pr_files_response = requests.get(pr_files_url, headers=headers)
+pr_files = pr_files_response.json()
 
-# Extract code diffs
+# Extract code changes
 code_changes = "\n\n".join([f"{file['filename']}:\n{file['patch']}" for file in pr_files if "patch" in file])
 
-# Step 2: Send to GPT for AI review
-client = OpenAI(api_key=OPENAI_API_KEY)
-
+# Step 2: Run Ollama for AI PR review
 prompt = f"""
-You are an AI PR reviewer. Review the following PR changes and provide:
-- **Code Quality Issues**
-- **Logic Errors**
-- **Optimization Suggestions**
-- **Missing Documentation or Comments**
-- **If the PR description is missing, suggest one.**
+Analyze this Pull Request and provide:
+- Code Quality Issues
+- Logic Errors
+- Optimization Suggestions
+- Best Practice Improvements
 
-Here are the changes:
+PR Changes:
 
 {code_changes}
-
-Provide detailed comments, formatted as bullet points.
 """
 
-response = client.chat.completions.create(
-    model="gpt-4-turbo",
-    messages=[{"role": "system", "content": prompt}]
-)
+ollama_response = subprocess.run(["ollama", "run", "mistral", prompt], capture_output=True, text=True)
+review_comments = ollama_response.stdout
 
-review_comments = response.choices[0].message.content
-
-# Step 3: Post Comments to GitHub PR
+# Step 3: Post review as a GitHub comment
 comment_url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
-comment_data = {"body": f"### AI PR Review Summary 🚀\n{review_comments}"}
+comment_data = {"body": f"### AI PR Review (Ollama) 🚀\n{review_comments}"}
 
 requests.post(comment_url, headers=headers, json=comment_data)
 
-print("AI PR Review Completed.")
+print("✅ AI PR Review Completed.")
